@@ -559,9 +559,21 @@ Show-ProfileTiming "Utility definitions"
 # Winget alkalmazásfrissítés
 # ============================================================
 
+# ============================================================
+# Winget alkalmazásfrissítés
+# ============================================================
+
 function Get-AppUpdates {
-    winget list --upgrade-available --source winget
+    Write-Host ""
+    Write-Host "Elérhető alkalmazásfrissítések:" -ForegroundColor Cyan
+    Write-Host ""
+
+    winget list `
+        --upgrade-available `
+        --include-unknown `
+        --source winget
 }
+
 
 function Update-Apps {
 
@@ -579,57 +591,62 @@ function Update-Apps {
 
         Write-Host ""
         Write-Host "Winget frissítéshez rendszergazdai jogosultság szükséges." -ForegroundColor Yellow
-        Write-Host "UAC jogosultságkérés indítása..." -ForegroundColor Yellow
+        Write-Host "PowerShell $($PSVersionTable.PSVersion) indítása rendszergazdaként..." -ForegroundColor Yellow
         Write-Host ""
 
-        # PowerShell 7 használata, ha elérhető
-        $pwsh = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+        # Pontosan ugyanazt a PowerShell 7 verziót használjuk,
+        # amelyben jelenleg fut a profil.
+        $pwshPath = Join-Path $PSHOME 'pwsh.exe'
 
-        if ($pwsh) {
-            Start-Process `
-                -FilePath $pwsh.Source `
-                -Verb RunAs `
-                -ArgumentList @(
-                    '-NoProfile'
-                    '-NoExit'
-                    '-Command'
-                    'winget upgrade --all --source winget --accept-source-agreements --accept-package-agreements'
-                )
+        if (-not (Test-Path $pwshPath)) {
+            Write-Host "A PowerShell 7 nem található: $pwshPath" -ForegroundColor Red
+            return
         }
-        else {
-            # Fallback Windows PowerShell 5.1-re
-            Start-Process `
-                -FilePath 'powershell.exe' `
-                -Verb RunAs `
-                -ArgumentList @(
-                    '-NoProfile'
-                    '-NoExit'
-                    '-Command'
-                    'winget upgrade --all --source winget --accept-source-agreements --accept-package-agreements'
-                )
-        }
+
+        Start-Process `
+            -FilePath $pwshPath `
+            -Verb RunAs `
+            -ArgumentList @(
+                '-NoProfile'
+                '-NoExit'
+                '-Command'
+                'winget upgrade --all --include-unknown --source winget --accept-source-agreements --accept-package-agreements'
+            )
 
         return
     }
 
-    # Ha már eleve rendszergazdai PowerShellben vagyunk
+    # Már rendszergazdai PowerShellben futunk
     Write-Host ""
     Write-Host "Winget alkalmazásfrissítés indítása..." -ForegroundColor Cyan
+    Write-Host "PowerShell verzió: $($PSVersionTable.PSVersion)" -ForegroundColor DarkGray
     Write-Host ""
 
     winget upgrade --all `
+        --include-unknown `
         --source winget `
         --accept-source-agreements `
         --accept-package-agreements
 
+    $wingetExitCode = $LASTEXITCODE
+
     Write-Host ""
 
-    if ($LASTEXITCODE -eq 0) {
+    if ($wingetExitCode -eq 0) {
         Write-Host "Winget frissítés befejeződött." -ForegroundColor Green
     }
     else {
-        Write-Host "A Winget frissítés hibával fejeződött be. Exit code: $LASTEXITCODE" -ForegroundColor Red
+        Write-Host "A Winget frissítés exit kódja: $wingetExitCode" -ForegroundColor Yellow
     }
+
+    Write-Host ""
+    Write-Host "Megmaradt frissítések ellenőrzése..." -ForegroundColor Cyan
+    Write-Host ""
+
+    winget list `
+        --upgrade-available `
+        --include-unknown `
+        --source winget
 }
 
 # ---------------------------------------------------------------------------
