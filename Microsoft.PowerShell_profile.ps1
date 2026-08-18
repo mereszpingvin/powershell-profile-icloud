@@ -5,7 +5,7 @@
 # Profile startup diagnostics
 # ---------------------------------------------------------------------------
 # Ideiglenesen hagyd $true értéken. Ha befejeztük a mérést, állítsd $false-ra.
-$EnableProfileTiming = $true
+$EnableProfileTiming = $false
 $ProfileStartupTimer = [System.Diagnostics.Stopwatch]::StartNew()
 $ProfileLastCheckpoint = [double]0
 
@@ -519,7 +519,7 @@ function gs { git status }
 
 function ga { git add . }
 
-function gc { param($m) git commit -m "$m" }
+function gcommit { param($m) git commit -m "$m" }
 
 function gpush { git push }
 
