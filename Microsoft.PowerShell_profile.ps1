@@ -555,26 +555,28 @@ function pst { Get-Clipboard }
 
 Show-ProfileTiming "Utility definitions"
 
-function Get-AppUpdates {
-    winget list --upgrade-available --source winget
-}
-
 # ============================================================
 # Winget alkalmazásfrissítés
 # ============================================================
 
+function Get-AppUpdates {
+    winget list --upgrade-available --source winget
+}
+
 function Update-Apps {
-    $isAdmin = (
-        [Security.Principal.WindowsPrincipal]
-        [Security.Principal.WindowsIdentity]::GetCurrent()
-    ).IsInRole(
+
+    # Ellenőrizzük, hogy rendszergazdai jogosultsággal fut-e a PowerShell
+    $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($currentIdentity)
+
+    $isAdmin = $principal.IsInRole(
         [Security.Principal.WindowsBuiltInRole]::Administrator
     )
 
     # Ha nem rendszergazdai PowerShellből futunk,
-    # egyszer kérünk UAC jogosultságot, majd emelt joggal
-    # elindítjuk a teljes Winget frissítést.
+    # egyszer kérünk UAC jogosultságot.
     if (-not $isAdmin) {
+
         Write-Host ""
         Write-Host "Winget frissítéshez rendszergazdai jogosultság szükséges." -ForegroundColor Yellow
         Write-Host "UAC jogosultságkérés indítása..." -ForegroundColor Yellow
@@ -588,21 +590,21 @@ function Update-Apps {
                 -FilePath $pwsh.Source `
                 -Verb RunAs `
                 -ArgumentList @(
-                    '-NoProfile',
-                    '-NoExit',
-                    '-Command',
+                    '-NoProfile'
+                    '-NoExit'
+                    '-Command'
                     'winget upgrade --all --source winget --accept-source-agreements --accept-package-agreements'
                 )
         }
         else {
-            # Fallback Windows PowerShellre
+            # Fallback Windows PowerShell 5.1-re
             Start-Process `
                 -FilePath 'powershell.exe' `
                 -Verb RunAs `
                 -ArgumentList @(
-                    '-NoProfile',
-                    '-NoExit',
-                    '-Command',
+                    '-NoProfile'
+                    '-NoExit'
+                    '-Command'
                     'winget upgrade --all --source winget --accept-source-agreements --accept-package-agreements'
                 )
         }
@@ -621,7 +623,13 @@ function Update-Apps {
         --accept-package-agreements
 
     Write-Host ""
-    Write-Host "Winget frissítés befejeződött." -ForegroundColor Green
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Winget frissítés befejeződött." -ForegroundColor Green
+    }
+    else {
+        Write-Host "A Winget frissítés hibával fejeződött be. Exit code: $LASTEXITCODE" -ForegroundColor Red
+    }
 }
 
 # ---------------------------------------------------------------------------
