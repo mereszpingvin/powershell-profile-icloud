@@ -555,6 +555,75 @@ function pst { Get-Clipboard }
 
 Show-ProfileTiming "Utility definitions"
 
+function Get-AppUpdates {
+    winget list --upgrade-available --source winget
+}
+
+# ============================================================
+# Winget alkalmazásfrissítés
+# ============================================================
+
+function Update-Apps {
+    $isAdmin = (
+        [Security.Principal.WindowsPrincipal]
+        [Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator
+    )
+
+    # Ha nem rendszergazdai PowerShellből futunk,
+    # egyszer kérünk UAC jogosultságot, majd emelt joggal
+    # elindítjuk a teljes Winget frissítést.
+    if (-not $isAdmin) {
+        Write-Host ""
+        Write-Host "Winget frissítéshez rendszergazdai jogosultság szükséges." -ForegroundColor Yellow
+        Write-Host "UAC jogosultságkérés indítása..." -ForegroundColor Yellow
+        Write-Host ""
+
+        # PowerShell 7 használata, ha elérhető
+        $pwsh = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+
+        if ($pwsh) {
+            Start-Process `
+                -FilePath $pwsh.Source `
+                -Verb RunAs `
+                -ArgumentList @(
+                    '-NoProfile',
+                    '-NoExit',
+                    '-Command',
+                    'winget upgrade --all --source winget --accept-source-agreements --accept-package-agreements'
+                )
+        }
+        else {
+            # Fallback Windows PowerShellre
+            Start-Process `
+                -FilePath 'powershell.exe' `
+                -Verb RunAs `
+                -ArgumentList @(
+                    '-NoProfile',
+                    '-NoExit',
+                    '-Command',
+                    'winget upgrade --all --source winget --accept-source-agreements --accept-package-agreements'
+                )
+        }
+
+        return
+    }
+
+    # Ha már eleve rendszergazdai PowerShellben vagyunk
+    Write-Host ""
+    Write-Host "Winget alkalmazásfrissítés indítása..." -ForegroundColor Cyan
+    Write-Host ""
+
+    winget upgrade --all `
+        --source winget `
+        --accept-source-agreements `
+        --accept-package-agreements
+
+    Write-Host ""
+    Write-Host "Winget frissítés befejeződött." -ForegroundColor Green
+}
+
 # ---------------------------------------------------------------------------
 # Integrated infrastructure / SSH shortcuts
 # ---------------------------------------------------------------------------
